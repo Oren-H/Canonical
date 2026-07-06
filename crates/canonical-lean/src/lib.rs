@@ -1,5 +1,5 @@
 // https://github.com/leanprover/lean4/blob/master/src/include/lean/lean.h
-use std::ffi::{CStr, CString, c_char, c_void};
+use std::ffi::{CStr, CString, c_char};
 use canonical_compat::ir::*;
 use canonical_core::core::*;
 use canonical_core::prover::*;
@@ -116,14 +116,14 @@ fn lean_align(v: usize, a: usize) -> usize {
 //     sz / 8 - 1
 // }
 
+/// Allocate through Lean's exported `lean_alloc_object` so the memory comes from the
+/// Lean runtime's own allocator. Calling `mi_malloc_small` here would statically bind to
+/// the mimalloc bundled by `canonical-core` (a different heap and version), and Lean's
+/// `mi_free` would crash when decrementing these objects.
 fn lean_alloc_small_object(sz: usize) -> *mut LeanObject {
     let sz = lean_align(sz, 8);
     unsafe {
-        let mem = mi_malloc_small(sz);
-        if mem.is_null() {
-            lean_internal_panic_out_of_memory();
-        }
-        let o = mem as *mut LeanObject;
+        let o = lean_alloc_object(sz) as *mut LeanObject;
         (*o).m_cs_sz = sz as u16;
         return o;
     }
@@ -365,8 +365,6 @@ extern "C" {
     fn lean_alloc_object(sz: usize) -> *const LeanObject;
     // fn lean_alloc_small(sz: usize, slot_idx: usize) -> *const LeanObject;
     // fn lean_io_check_canceled_core() -> bool;
-    fn mi_malloc_small(sz: usize) -> *mut c_void;
-    fn lean_internal_panic_out_of_memory();
     fn lean_mk_io_user_error(str: *const LeanStringObject) -> *const LeanObject;
     // fn lean_dbg_trace(s: *const LeanStringObject, f: *const LeanObject);
 }

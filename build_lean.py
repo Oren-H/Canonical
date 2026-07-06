@@ -27,6 +27,10 @@ def main():
         subprocess.run(["cargo", "build", "-p", LIB_NAME, "--release", "--target", "x86_64-pc-windows-gnu"], shell=False, check=True)
     else:
         subprocess.run(["cargo", "build", "-p", LIB_NAME, "--release"], shell=False, check=True)
+    # Remove before copying: overwriting a dylib in place reuses the inode, which
+    # invalidates macOS's cached code signature and gets the process SIGKILLed.
+    if os.path.exists(LEAN_LIB):
+        os.remove(LEAN_LIB)
     shutil.copy2(TARGET, LEAN_LIB)
     
 if __name__ == "__main__":
